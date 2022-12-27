@@ -1,6 +1,8 @@
 """
 Author: Wael DOULAZMI // 26.12.2022
 Purpose: Use prot_bert to compute embeddings of all our proteins that can be used later
+
+Run once to compute all embeddings and save them in pickle format
 """
 from transformers import BertModel, BertTokenizer
 import re
@@ -8,7 +10,7 @@ from data import load_sequences
 from tqdm import tqdm
 import torch
 import os
-import json
+import pickle
 
 tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False)
 model = BertModel.from_pretrained("Rostlab/prot_bert")
@@ -60,8 +62,8 @@ with torch.no_grad():
 os.makedirs('data/bert_embeddings/train/', exist_ok=True)
 os.makedirs('data/bert_embeddings/test/', exist_ok=True)
 
-with open('data/bert_embeddings/train/embeddings.json', 'w') as fp:
-    json.dump(train_bert_embeddings, fp)
+with open('data/bert_embeddings/train/embeddings.pkl', 'wb') as fp:
+    pickle.dump(train_bert_embeddings, fp)
 
-with open('data/bert_embeddings/test/embeddings.json', 'w') as fp:
-    json.dump(test_bert_embeddings, fp)
+with open('data/bert_embeddings/test/embeddings.pkl', 'wb') as fp:
+    pickle.dump(test_bert_embeddings, fp)
