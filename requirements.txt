@@ -1,8 +1,10 @@
 # pip install pipreqs
 # piprequs path/to/project to create requirements.txt
 
-bio_embeddings==0.2.2
-numpy==1.19.5
-scikit_learn==1.2.0
-scipy==1.8.1
-torch==1.9.1
+bio_embeddings
+numpy
+scikit_learn
+scipy
+torch
+transformers
+tqdm

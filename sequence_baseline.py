@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression
 
 # Read sequences
 sequences = list()
-with open('sequences.txt', 'r') as f:
+with open('data/sequences.txt', 'r') as f:
     for line in f:
         sequences.append(line[:-1])
 
@@ -15,7 +15,7 @@ sequences_train = list()
 sequences_test = list()
 proteins_test = list()
 y_train = list()
-with open('graph_labels.txt', 'r') as f:
+with open('data/graph_labels.txt', 'r') as f:
     for i,line in enumerate(f):
         t = line.split(',')
         if len(t[1][:-1]) == 0:

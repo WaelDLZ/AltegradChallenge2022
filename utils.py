@@ -9,6 +9,7 @@ import scipy.sparse as sp
 
 import torch
 
+
 def normalize_adjacency(A):
     """
     Function that normalizes an adjacency matrix
@@ -22,6 +23,7 @@ def normalize_adjacency(A):
 
     return A_normalized
 
+
 def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     """
     Function that converts a Scipy sparse matrix to a sparse Torch tensor
@@ -31,6 +33,7 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     values = torch.from_numpy(sparse_mx.data)
     shape = torch.Size(sparse_mx.shape)
     return torch.sparse.FloatTensor(indices, values, shape)
+
 
 def split_data(path_labels, adj, features):
     """
@@ -56,6 +59,7 @@ def split_data(path_labels, adj, features):
 
     return (adj_train, features_train, y_train,
             adj_test, features_test, proteins_test)
+
 
 def write_submission(path_submission, proteins_test, y_pred_proba):
     """

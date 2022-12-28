@@ -34,3 +34,27 @@ def load_data():
         idx_m += adj[i].nnz
 
     return adj, features, edge_features
+
+
+def load_sequences():
+    sequences = list()
+    with open('data/sequences.txt', 'r') as f:
+        for line in f:
+            sequences.append(line[:-1])
+
+    # Split data into training and test sets
+    sequences_train = list()
+    sequences_test = list()
+    proteins_test = list()
+    y_train = list()
+    with open('data/graph_labels.txt', 'r') as f:
+        for i, line in enumerate(f):
+            t = line.split(',')
+            if len(t[1][:-1]) == 0:
+                proteins_test.append(t[0])
+                sequences_test.append(sequences[i])
+            else:
+                sequences_train.append(sequences[i])
+                y_train.append(int(t[1][:-1]))
+
+    return sequences_train, sequences_test
