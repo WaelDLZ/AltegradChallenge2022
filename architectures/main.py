@@ -1,13 +1,17 @@
 import sys 
-(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
+#(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
+(sys.path).append('C:\\Users\\Wael\\Desktop\\MVA\\Altegrad\\altegrad_challenge_2022\\AltegradChallenge2022')
 
+from load_BERT_embeddings import load_BERT_embedding
 from data import load_data, split_train_test
 from datasets import DGLGraphDataset
 from dgl.dataloading import GraphDataLoader
 import torch
 from networks import HGPSLModel
 from train import train, test
-
+import numpy as np
+import csv
+from tqdm import tqdm
 
 
 import argparse
@@ -37,6 +41,12 @@ def parse_args():
                         help="number of epochs to wait to early stop the training")
     parser.add_argument('--print_every', type=int, default=1, metavar='D',
                         help="val_loss to print every X epochs")
+    parser.add_argument('--path_embeddings', type=str,
+                        help="path to the BERT embeddings pickle file")
+    parser.add_argument('--path_submission', type=str,
+                        help="path to csv file for submissions")
+    parser.add_argument('--path_pretrained_model', type=str,
+                        help="Path to pretrained models weights")
     args = parser.parse_args()
     return args
                                                     
@@ -44,14 +54,18 @@ def parse_args():
 
 def main(args):
 
-    device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
     print("Load data...")
     adj, features, edge_features = load_data(args.path_data)
     print('Data Loaded !')
 
-    adj_train, features_train, edge_features_train, y_train, adj_test, features_test, edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
-
+    adj_train, features_train, edge_features_train, y_train, adj_test, features_test,\
+        edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
+    
+    features_train = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
+    features_test = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
+    
     dataset_train = DGLGraphDataset(adj_train, features_train, edge_features_train, y_train)
     dataset_test = DGLGraphDataset(adj_test, features_test, edge_features_test, train=False)
 
@@ -66,34 +80,68 @@ def main(args):
     n_hid = args.n_hid
 
     model = HGPSLModel(n_feat, n_classes, n_hid).to(device)
+
+    if args.path_pretrained_model:
+        model.load_state_dict(torch.load(args.path_pretrained_model))
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     train_loader = GraphDataLoader(train_set, batch_size=args.batch_size, shuffle=True)
     val_loader = GraphDataLoader(val_set, batch_size=args.batch_size, shuffle=True)
+    test_loader = GraphDataLoader(dataset_test, batch_size=1, shuffle=False)
 
-    print("Training...")
-    bad_cound = 0
-    best_val_loss = float("inf")
-    best_epoch = 0
-    train_times = []
-    for e in range(args.epochs):
-        train_loss = train(model, optimizer, train_loader, device)
-        val_acc, val_loss = test(model, val_loader, device)
-        if best_val_loss > val_loss:
-            best_val_loss = val_loss
-            bad_cound = 0
-            torch.save(model.state_dict(), args.path_save_model)
-        else:
-            bad_cound += 1
-        if bad_cound >= args.patience:
-            break
+    if args.epochs > 0:
+        print("Training...")
+        bad_cound = 0
+        best_val_loss = float("inf")
+        best_epoch = 0
+        train_times = []
+        for e in range(args.epochs):
+            train_loss = train(model, optimizer, train_loader, device)
+            val_acc, val_loss = test(model, val_loader, device)
+            if best_val_loss > val_loss:
+                best_val_loss = val_loss
+                bad_cound = 0
+                torch.save(model.state_dict(), args.path_save_model)
+            else:
+                bad_cound += 1
+            if bad_cound >= args.patience:
+                break
 
-        if (e + 1) % args.print_every == 0:
-            log_format = (
-                "Epoch {}: val_loss={:.4f}, val_acc={:.4f}"
-            )
-            print(log_format.format(e + 1, val_loss, val_acc))
-    print("Training done !")
+            if (e + 1) % args.print_every == 0:
+                log_format = (
+                    "Epoch {}:  train_loss={:.4f}, val_loss={:.4f}, val_acc={:.4f}"
+                )
+                print(log_format.format(e + 1, train_loss, val_loss, val_acc))
+        print("Training done !")
+
+    if args.path_submission:
+        print("Inference on test set: ")
+
+        model.eval()
+        preds = list()
+        with torch.no_grad():
+            for batch in tqdm(test_loader):
+                x = batch.to(device)
+                out = model(x, x.ndata["feat"])
+                pred = out.detach().cpu().numpy()
+                pred = np.exp(pred)
+                preds.append(pred)
+        y_pred_proba = np.array([list(pred[0]) for pred in preds])
+
+        print("Writing submissions to : {}".format(args.path_submission))
+        with open(args.path_submission, 'w') as csvfile:
+            writer = csv.writer(csvfile, delimiter=',')
+            lst = list()
+            for i in range(18):
+                lst.append('class' + str(i))
+            lst.insert(0, "name")
+            writer.writerow(lst)
+            for i, protein in enumerate(proteins_test):
+                lst = y_pred_proba[i, :].tolist()
+                lst.insert(0, protein)
+                writer.writerow(lst)
+
 
 if __name__ == "__main__":
     args = parse_args()
