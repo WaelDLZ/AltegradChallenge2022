@@ -3,25 +3,27 @@ import time
 import numpy as np
 import scipy.sparse as sp
 from sklearn.metrics import accuracy_score, log_loss
+from architectures.load_BERT_embeddings import load_BERT_embedding
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 
+
 def load_data(): 
     """
     Function that loads graphs
     """  
-    graph_indicator = np.loadtxt("graph_indicator.txt", dtype=np.int64)
+    graph_indicator = np.loadtxt("data/graph_indicator.txt", dtype=np.int64)
     _,graph_size = np.unique(graph_indicator, return_counts=True)
     
-    edges = np.loadtxt("edgelist.txt", dtype=np.int64, delimiter=",")
+    edges = np.loadtxt("data/edgelist.txt", dtype=np.int64, delimiter=",")
     A = sp.csr_matrix((np.ones(edges.shape[0]), (edges[:,0], edges[:,1])), shape=(graph_indicator.size, graph_indicator.size))
     A += A.T
     
-    x = np.loadtxt("node_attributes.txt", delimiter=",")
-    edge_attr = np.loadtxt("edge_attributes.txt", delimiter=",")
+    x = np.loadtxt("data/node_attributes.txt", delimiter=",")
+    edge_attr = np.loadtxt("data/edge_attributes.txt", delimiter=",")
     
     adj = []
     features = []
@@ -114,7 +116,7 @@ y_train = list()
 adj_test = list()
 features_test = list()
 proteins_test = list()
-with open('graph_labels.txt', 'r') as f:
+with open('data/graph_labels.txt', 'r') as f:
     for i,line in enumerate(f):
         t = line.split(',')
         if len(t[1][:-1]) == 0:
@@ -129,18 +131,39 @@ with open('graph_labels.txt', 'r') as f:
 # Initialize device
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+embeddings_train, _ = load_BERT_embedding(path='data/bert_embeddings/train/embeddings.pkl')
+embeddings_test, _ = load_BERT_embedding(path='data/bert_embeddings/test/embeddings.pkl')
+
+features_train = list(embeddings_train)
+features_test = list(embeddings_test)
+
+
 # Hyperparameters
-epochs = 50
+epochs = 20
 batch_size = 64
-n_hidden = 64
-n_input = 86
-dropout = 0.2
+n_hidden = 256
+n_input = 1024
+dropout = 0.55
 learning_rate = 0.001
 n_class = 18
 
 # Compute number of training and test samples
 N_train = len(adj_train)
 N_test = len(adj_test)
+
+n_train = int(0.8 * N_train)
+n_val = N_train - n_train
+
+np.random.seed(42)
+idx = np.random.permutation(N_train)
+
+train_feat = features_train[idx[:n_train]]
+val_feat = features_train[idx[n_train:]]
+train_adj = adj_train[idx[:n_train]]
+val_adj = adj_train[idx[n_train:]]
+train_y = y_train[idx[:n_train]]
+val_y = y_train[idx[n_train:]]
+
 
 # Initializes model and optimizer
 model = GNN(n_input, n_hidden, dropout, n_class).to(device)
@@ -225,7 +248,7 @@ y_pred_proba = torch.exp(y_pred_proba)
 y_pred_proba = y_pred_proba.detach().cpu().numpy()
 
 # Write predictions to a file
-with open('submissions/wael_doulazmi.csv', 'w') as csvfile:
+with open('submissions/sample_submission_2.csv', 'w') as csvfile:
     writer = csv.writer(csvfile, delimiter=',')
     lst = list()
     for i in range(18):

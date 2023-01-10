@@ -57,4 +57,34 @@ def load_sequences():
                 sequences_train.append(sequences[i])
                 y_train.append(int(t[1][:-1]))
 
+<<<<<<< Updated upstream
     return sequences_train, sequences_test
+=======
+    return sequences_train, sequences_test, proteins_test, y_train
+
+def split_train_test(adj, features, edge_features, path=''):
+    # Split data into training and test sets
+    adj_train = list()
+    features_train = list()
+    edge_features_train = list()
+    y_train = list()
+    adj_test = list()
+    features_test = list()
+    edge_features_test = list()
+    proteins_test = list()
+    with open(os.path.join(path, 'graph_labels.txt'), 'r') as f:
+        for i,line in enumerate(f):
+            t = line.split(',')
+            if len(t[1][:-1]) == 0:
+                proteins_test.append(t[0])
+                adj_test.append(adj[i])
+                features_test.append(features[i])
+                edge_features_test.append(edge_features[i])
+
+            else:
+                adj_train.append(adj[i])
+                features_train.append(features[i])
+                y_train.append(int(t[1][:-1]))
+                edge_features_train.append(edge_features[i])
+    return adj_train, features_train, edge_features_train, y_train, adj_test, features_test, edge_features_test, proteins_test
+>>>>>>> Stashed changes

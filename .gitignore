@@ -1,2 +1,4 @@
 /data/
 /submissions/
+*.pyc
+/models/
