@@ -5,6 +5,8 @@ Purpose: Create graphs and features
 
 import numpy as np
 import scipy.sparse as sp
+import os
+
 
 def load_data():
     """
@@ -58,6 +60,7 @@ def load_sequences():
                 y_train.append(int(t[1][:-1]))
 
     return sequences_train, sequences_test, proteins_test, y_train
+
 
 def split_train_test(adj, features, edge_features, path=''):
     # Split data into training and test sets
