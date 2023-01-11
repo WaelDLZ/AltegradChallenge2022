@@ -12,12 +12,12 @@ import torch
 import os
 import pickle
 
-tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False)
-model = BertModel.from_pretrained("Rostlab/prot_bert")
+tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert_bfd", do_lower_case=False)
+model = BertModel.from_pretrained("Rostlab/prot_bert_bfd")
 
 # Load sequences
 
-sequences_train, sequences_test = load_sequences()
+sequences_train, sequences_test,_ ,_ = load_sequences()
 
 # Put spaces between amino acids
 
@@ -59,11 +59,11 @@ with torch.no_grad():
 
 # Save results once for all
 
-os.makedirs('data/bert_embeddings/train/', exist_ok=True)
-os.makedirs('data/bert_embeddings/test/', exist_ok=True)
+os.makedirs('data/bert_bfd_embeddings/train/', exist_ok=True)
+os.makedirs('data/bert_bfd_embeddings/test/', exist_ok=True)
 
-with open('data/bert_embeddings/train/embeddings.pkl', 'wb') as fp:
+with open('data/bert_bfd_embeddings/train/embeddings.pkl', 'wb') as fp:
     pickle.dump(train_bert_embeddings, fp)
 
-with open('data/bert_embeddings/test/embeddings.pkl', 'wb') as fp:
+with open('data/bert_bfd_embeddings/test/embeddings.pkl', 'wb') as fp:
     pickle.dump(test_bert_embeddings, fp)

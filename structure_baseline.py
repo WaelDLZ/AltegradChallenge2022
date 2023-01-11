@@ -225,7 +225,7 @@ y_pred_proba = torch.exp(y_pred_proba)
 y_pred_proba = y_pred_proba.detach().cpu().numpy()
 
 # Write predictions to a file
-with open('submissions/wael_doulazmi.csv', 'w') as csvfile:
+with open('submissions/sample_submission.csv', 'w') as csvfile:
     writer = csv.writer(csvfile, delimiter=',')
     lst = list()
     for i in range(18):

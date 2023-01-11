@@ -2,9 +2,9 @@ import torch
 import torch.nn
 import torch.nn.functional as F
 from layers import ConvPoolReadout
-from dgl.nn.pytorch.conv import GraphConv, SAGEConv, GATConv
 
-from dgl.nn.pytorch.glob import SumPooling, GlobalAttentionPooling, AvgPooling
+from dgl.nn import AvgPooling, MaxPooling
+
 
 class HGPSLModel(torch.nn.Module):
     r"""
@@ -147,119 +147,3 @@ class MultimodalModel(torch.nn.Module):
 
         return F.log_softmax(n_feat, dim=-1)
 
-
-class GNN(torch.nn.Module):
-    def __init__(self,       
-                 in_feat: int,
-                 out_feat: int,
-                 hid_feat: int,
-                 dropout: float = 0.5,
-                 graph_layers=None,
-                 agg='mean',
-                 num_heads=1):
-        super(GNN, self).__init__()
-
-        self.mp1 = GraphConv(in_feat, hid_feat)
-        self.mp2 = GraphConv(hid_feat, hid_feat)
-
-        self.graph_layers = graph_layers
-
-        if graph_layers == 'SAGE':
-            self.mp1 = SAGEConv(in_feat, hid_feat, aggregator_type=agg)
-            self.mp2 = SAGEConv(hid_feat, hid_feat, aggregator_type=agg)
-        if graph_layers == 'GAT':
-            self.mp1 = GATConv(in_feat, hid_feat, num_heads=num_heads)
-            self.mp2 = GATConv(hid_feat, hid_feat, num_heads=num_heads)
-
-        self.fc1 = torch.nn.Linear(hid_feat, hid_feat)
-        self.fc2 = torch.nn.Linear(hid_feat, out_feat)
-        
-        self.bn = torch.nn.BatchNorm1d(hid_feat)
-        self.relu = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(dropout)
-        
-        self.readout = SumPooling()
-
-    def forward(self, graph, n_feat):
-        if self.graph_layers == 'GAT':
-            x = self.mp1(graph, n_feat).squeeze(-2)
-            x = self.relu(x)
-            x = self.dropout(x)
-            x = self.mp2(graph, x).squeeze(-2)
-            x = self.relu(x)
-        else:
-            x = self.relu(self.mp1(graph, n_feat))
-            x = self.dropout(x)
-            x = self.relu(self.mp2(graph, x))
-        
-        embedding = self.readout(graph, x)
-        
-        # batch normalization layer
-        out = self.bn(embedding)
-
-        # mlp to produce output
-        out = self.relu(self.fc1(out))
-        out = self.dropout(out)
-        out = self.fc2(out)
-        
-        return embedding, torch.nn.functional.log_softmax(out, dim=-1)
-
-
-class GNN_roman(torch.nn.Module):
-    def __init__(self,
-                 in_feat: int,
-                 out_feat: int,
-                 hid_feat: int,
-                 dropout: float = 0.5,
-                 graph_layers=None,
-                 agg='mean',
-                 num_heads=1):
-        super(GNN_roman, self).__init__()
-
-        self.mp1 = GraphConv(in_feat, hid_feat)
-        self.mp2 = GraphConv(hid_feat, hid_feat//2)
-        self.mp3 = GraphConv(hid_feat//2, hid_feat//2)
-
-        self.graph_layers = graph_layers
-
-        if graph_layers == 'SAGE':
-            self.mp1 = SAGEConv(in_feat, hid_feat, aggregator_type=agg)
-            self.mp2 = SAGEConv(hid_feat, hid_feat, aggregator_type=agg)
-        if graph_layers == 'GAT':
-            self.mp1 = GATConv(in_feat, hid_feat, num_heads=num_heads)
-            self.mp2 = GATConv(hid_feat, hid_feat, num_heads=num_heads)
-
-        self.fc1 = torch.nn.Linear(hid_feat//2, hid_feat//2)
-        self.fc2 = torch.nn.Linear(hid_feat//2, out_feat)
-
-        self.bn = torch.nn.BatchNorm1d(hid_feat//2)
-        self.relu = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(dropout)
-
-        self.readout = SumPooling()
-
-    def forward(self, graph, n_feat):
-        if self.graph_layers == 'GAT':
-            x = self.mp1(graph, n_feat).squeeze(-2)
-            x = self.relu(x)
-            x = self.dropout(x)
-            x = self.mp2(graph, x).squeeze(-2)
-            x = self.relu(x)
-        else:
-            x = self.relu(self.mp1(graph, n_feat))
-            x = self.dropout(x)
-            x = self.relu(self.mp2(graph, x))
-            x = self.dropout(x)
-            x = self.relu(self.mp3(graph, x))
-
-        embedding = self.readout(graph, x)
-
-        # batch normalization layer
-        out = self.bn(embedding)
-
-        # mlp to produce output
-        out = self.relu(self.fc1(out))
-        out = self.dropout(out)
-        out = self.fc2(out)
-
-        return embedding, torch.nn.functional.log_softmax(out, dim=-1)

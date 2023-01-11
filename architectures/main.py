@@ -7,7 +7,7 @@ from data import load_data, split_train_test
 from datasets import DGLGraphDataset
 from dgl.dataloading import GraphDataLoader
 import torch
-from networks import GNN
+from networks import HGPSLModel
 from train import train, test
 import numpy as np
 import csv
@@ -47,10 +47,6 @@ def parse_args():
                         help="path to csv file for submissions")
     parser.add_argument('--path_pretrained_model', type=str,
                         help="Path to pretrained models weights")
-    parser.add_argument('--dropout', type=float, default=0.5,
-                        help="Dropout ratio")
-    parser.add_argument('--graph_layers', type=str, default=None,
-                        help="Type of message passing layers in GNN")
     args = parser.parse_args()
     return args
                                                     
@@ -82,20 +78,20 @@ def main(args):
     train_set, val_set = torch.utils.data.random_split(dataset_train, [num_train, num_val],
                                                        generator=torch.Generator().manual_seed(42))
 
-    in_feat = features_train[0].shape[1]
+    n_feat = features_train[0].shape[1]
     n_classes = args.n_classes
     n_hid = args.n_hid
 
-    model = GNN(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    model = HGPSLModel(n_feat, n_classes, n_hid).to(device)
 
     if args.path_pretrained_model:
         model.load_state_dict(torch.load(args.path_pretrained_model))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.2)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
     train_loader = GraphDataLoader(train_set, batch_size=args.batch_size, shuffle=True)
-    val_loader = GraphDataLoader(val_set, batch_size=args.batch_size, shuffle=False)
+    val_loader = GraphDataLoader(val_set, batch_size=args.batch_size, shuffle=True)
     test_loader = GraphDataLoader(dataset_test, batch_size=1, shuffle=False)
 
     if args.epochs > 0:
