@@ -16,6 +16,8 @@ class DGLGraphDataset_3graphs(Dataset):
     def __getitem__(self, idx):
         g = dgl.from_scipy(self.adj[idx])
         g.ndata['feat'] = torch.FloatTensor(self.features[idx])
+        print(idx)
+        print(self.edge_features[idx].shape)
         g.edata['feat'] = torch.FloatTensor(self.edge_features[idx])
 
         subg_dist = g.filter_edges(lambda edges : edges.data['feat'][:,1] == 1)
@@ -48,37 +50,3 @@ class DGLGraphDataset_Multimodal(Dataset):
             return g, torch.FloatTensor(self.protein_embeddings[idx]), self.labels[idx]
         else : 
             return g, torch.FloatTensor(self.protein_embeddings[idx])
-
-
-
-subg = g.filter_edges(lambda edges: edges.data['feat'][:, 0] == 1)
-
-import torch
-from torch.utils.data import Dataset
-import dgl
-
-class DGLGraphDataset_new(Dataset):
-    def __init__(self, adj, features, edge_features, labels=None, train=True):
-        self.adj = adj
-        self.features = features
-        self.edge_features = edge_features
-        self.labels = labels
-        self.train = train
-
-    def __len__(self):
-        return len(self.adj)
-
-    def __getitem__(self, idx):
-        g = dgl.from_scipy(self.adj[idx])
-        g.ndata['feat'] = torch.FloatTensor(self.features[idx])
-        g.edata['feat'] = torch.FloatTensor(self.edge_features[idx])
-        
-        def edge_filter(edata, eid):
-            return edata['feat'][0] == 1
-
-        g_sub = g.filter_edges(edge_filter)
-        
-        if self.train:
-            return g, g_sub, self.labels[idx]
-        else:
-            return g, g_sub
