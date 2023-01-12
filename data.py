@@ -87,4 +87,3 @@ def split_train_test(adj, features, edge_features, path=''):
                 y_train.append(int(t[1][:-1]))
                 edge_features_train.append(edge_features[i])
     return adj_train, features_train, edge_features_train, y_train, adj_test, features_test, edge_features_test, proteins_test
-
