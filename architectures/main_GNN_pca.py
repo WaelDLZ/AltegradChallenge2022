@@ -63,15 +63,18 @@ def main(args):
 
     print("Load data...")
     adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
-    features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
+    features = pickle.load(open(args.path_data + 'pca_nodes_attributes.pkl', 'rb'))
     edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
     print('Data Loaded !')
 
-    adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
+    adj_train, pca_train, edge_features_train, y_train, adj_test, pca_test, \
     edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
 
-    features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
-    features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
+    bert_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
+    bert_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
+
+    features_train = [np.concatenate([pca_train[i], bert_train[i]], axis=1) for i in range(len(bert_train))]
+    features_test = [np.concatenate([pca_test[i], bert_test[i]], axis=1) for i in range(len(bert_test))]
 
     dataset_train = DGLGraphDataset(adj_train, features_train, edge_features_train, y_train)
     dataset_test = DGLGraphDataset(adj_test, features_test, edge_features_test, train=False)
@@ -86,7 +89,7 @@ def main(args):
     n_classes = args.n_classes
     n_hid = args.n_hid
 
-    model = GNN(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    model = GNN(in_feat=1028, out_feat=18, hid_feat=args.n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
 
     if args.path_pretrained_model:
         model.load_state_dict(torch.load(args.path_pretrained_model))

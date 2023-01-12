@@ -63,15 +63,15 @@ def main(args):
 
     print("Load data...")
     adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
-    features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
+    features = pickle.load(open(args.path_data + 'pca_nodes_attributes.pkl', 'rb'))
     edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
     print('Data Loaded !')
 
     adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
     edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
 
-    features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
-    features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
+    # features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
+    # features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
 
     dataset_train = DGLGraphDataset(adj_train, features_train, edge_features_train, y_train)
     dataset_test = DGLGraphDataset(adj_test, features_test, edge_features_test, train=False)
