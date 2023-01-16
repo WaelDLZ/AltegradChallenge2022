@@ -5,11 +5,11 @@ import sys
 
 from load_BERT_embeddings import load_BERT_embedding
 from data import load_data, split_train_test
-from datasets import DGLGraphDataset
+from datasets import DGLGraphDataset_3graphs
 from dgl.dataloading import GraphDataLoader
 import torch
-from networks import GNN
-from train import train, test
+from networks import GNN_multiple
+from train import train_multi_graph, test_multi_graph
 import numpy as np
 import csv
 from tqdm import tqdm
@@ -62,9 +62,10 @@ def main(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
     print("Load data...")
-    adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
-    features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
-    edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
+    # adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
+    # features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
+    # edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
+    adj, features, edge_features = load_data(path=args.path_data)
     print('Data Loaded !')
 
     adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
@@ -73,8 +74,8 @@ def main(args):
     features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
     features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
 
-    dataset_train = DGLGraphDataset(adj_train, features_train, edge_features_train, y_train)
-    dataset_test = DGLGraphDataset(adj_test, features_test, edge_features_test, train=False)
+    dataset_train = DGLGraphDataset_3graphs(adj_train, features_train, edge_features_train, y_train)
+    dataset_test = DGLGraphDataset_3graphs(adj_test, features_test, edge_features_test, train=False)
 
     num_train = int(args.split_percent * len(dataset_train))
     num_val = len(dataset_train) - num_train
@@ -86,7 +87,7 @@ def main(args):
     n_classes = args.n_classes
     n_hid = args.n_hid
 
-    model = GNN(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    model = GNN_multiple(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
 
     if args.path_pretrained_model:
         model.load_state_dict(torch.load(args.path_pretrained_model))
@@ -105,8 +106,8 @@ def main(args):
         best_epoch = 0
         train_times = []
         for e in range(args.epochs):
-            train_loss = train(model, optimizer, train_loader, device, scheduler=scheduler)
-            val_acc, val_loss = test(model, val_loader, device)
+            train_loss = train_multi_graph(model, optimizer, train_loader, device, scheduler=scheduler)
+            val_acc, val_loss = test_multi_graph(model, val_loader, device)
             if best_val_loss > val_loss:
                 best_val_loss = val_loss
                 bad_cound = 0
@@ -130,8 +131,11 @@ def main(args):
         preds = list()
         with torch.no_grad():
             for batch in tqdm(test_loader):
-                x = batch.to(device)
-                _, out = model(x, x.ndata["feat"])
+                batch_graphs, batch_graphs_dist, batch_graphs_pept = batch
+                batch_graphs = batch_graphs.to(device)
+                batch_graphs_dist = batch_graphs_dist.to(device)
+                batch_graphs_pept = batch_graphs_pept.to(device)
+                _, out = model(batch_graphs, batch_graphs_dist, batch_graphs_pept)
                 pred = out.detach().cpu().numpy()
                 pred = np.exp(pred)
                 preds.append(pred)
