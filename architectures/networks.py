@@ -282,7 +282,7 @@ class GNN_multiple(torch.nn.Module):
         self.gnn2 = GNN(in_feat, out_feat, hid_feat, dropout, graph_layers, agg, num_heads)
         self.gnn3 = GNN(in_feat, out_feat, hid_feat, dropout, graph_layers, agg, num_heads)
 
-        self.bn = torch.nn.BatchNorm1d(hid_feat)
+        self.bn = torch.nn.BatchNorm1d(3*hid_feat)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(dropout)
 
@@ -293,10 +293,10 @@ class GNN_multiple(torch.nn.Module):
         output1, _ = self.gnn1(g1, g1.ndata["feat"])
         output2, _ = self.gnn1(g2, g2.ndata["feat"])
         output3, _ = self.gnn1(g3, g3.ndata["feat"])
-
-        embedding = torch.cat([output1, output2, output3], dim=-2)
+        embedding = torch.cat([output1, output2, output3], dim=-1)
         
         out = self.bn(embedding)
+
 
         # mlp to produce output
         out = self.relu(self.fc1(out))
