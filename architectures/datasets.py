@@ -16,12 +16,10 @@ class DGLGraphDataset_3graphs(Dataset):
     def __getitem__(self, idx):
         g = dgl.from_scipy(self.adj[idx])
         g.ndata['feat'] = torch.FloatTensor(self.features[idx])
-        print(idx)
-        print(self.edge_features[idx].shape)
         g.edata['feat'] = torch.FloatTensor(self.edge_features[idx])
 
-        subg_dist = g.filter_edges(lambda edges : edges.data['feat'][:,1] == 1)
-        subg_pept = g.filter_edges(lambda edges : edges.data['feat'][:,2] == 1)
+        subg_dist = g.edge_subgraph(g.filter_edges(lambda edges : edges.data['feat'][:,1] == 1))
+        subg_pept = g.edge_subgraph(g.filter_edges(lambda edges : edges.data['feat'][:,2] == 1))
         
         if self.train :
             return g, subg_dist, subg_pept, self.labels[idx]
