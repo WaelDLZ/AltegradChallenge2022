@@ -7,31 +7,47 @@ import numpy as np
 import scipy.sparse as sp
 import os
 
+import csv
+import time
+import numpy as np
+import scipy.sparse as sp
 
-def load_data():
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import optim
+
+def load_data(path=''): 
     """
     Function that loads graphs
-    """
-    graph_indicator = np.loadtxt("graph_indicator.txt", dtype=np.int64)
-    _, graph_size = np.unique(graph_indicator, return_counts=True)
-
-    edges = np.loadtxt("edgelist.txt", dtype=np.int64, delimiter=",")
-    A = sp.csr_matrix((np.ones(edges.shape[0]), (edges[:, 0], edges[:, 1])),
-                      shape=(graph_indicator.size, graph_indicator.size))
-    A += A.T
-
-    x = np.loadtxt("node_attributes.txt", delimiter=",")
-    edge_attr = np.loadtxt("edge_attributes.txt", delimiter=",")
-
+    """  
+    graph_indicator = np.loadtxt(os.path.join(path, "graph_indicator.txt"), dtype=np.int64)
+    _,graph_size = np.unique(graph_indicator, return_counts=True)
+    
+    edges = np.loadtxt(os.path.join(path, "edgelist.txt"), dtype=np.int64, delimiter=",")
+    edges_inv = np.vstack((edges[:,1], edges[:,0]))
+    edges = np.vstack((edges, edges_inv.T))
+    s = edges[:,0]*graph_indicator.size + edges[:,1]
+    idx_sort = np.argsort(s)
+    edges = edges[idx_sort,:]
+    edges,idx_unique =  np.unique(edges, axis=0, return_index=True)
+    A = sp.csr_matrix((np.ones(edges.shape[0]), (edges[:,0], edges[:,1])), shape=(graph_indicator.size, graph_indicator.size))
+    
+    x = np.loadtxt(os.path.join(path, "node_attributes.txt"), delimiter=",")
+    edge_attr = np.loadtxt(os.path.join(path, "edge_attributes.txt"), delimiter=",")
+    edge_attr = np.vstack((edge_attr,edge_attr))
+    edge_attr = edge_attr[idx_sort,:]
+    edge_attr = edge_attr[idx_unique,:]
+    
     adj = []
     features = []
     edge_features = []
     idx_n = 0
     idx_m = 0
     for i in range(graph_size.size):
-        adj.append(A[idx_n:idx_n + graph_size[i], idx_n:idx_n + graph_size[i]])
-        edge_features.append(edge_attr[idx_m:idx_m + adj[i].nnz, :])
-        features.append(x[idx_n:idx_n + graph_size[i], :])
+        adj.append(A[idx_n:idx_n+graph_size[i],idx_n:idx_n+graph_size[i]])
+        edge_features.append(edge_attr[idx_m:idx_m+adj[i].nnz,:])
+        features.append(x[idx_n:idx_n+graph_size[i],:])
         idx_n += graph_size[i]
         idx_m += adj[i].nnz
 
@@ -87,3 +103,4 @@ def split_train_test(adj, features, edge_features, path=''):
                 y_train.append(int(t[1][:-1]))
                 edge_features_train.append(edge_features[i])
     return adj_train, features_train, edge_features_train, y_train, adj_test, features_test, edge_features_test, proteins_test
+
