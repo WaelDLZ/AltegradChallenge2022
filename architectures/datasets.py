@@ -1,14 +1,17 @@
 import torch
 from torch.utils.data import Dataset
 import dgl
+import numpy as np
 
-class DGLGraphDataset_3graphs(Dataset):
-    def __init__(self, adj, features, edge_features, labels=None, train=True):
+class DGLGraphDataset_ngraphs(Dataset):
+    def __init__(self, adj, features, edge_features, labels=None, train=True, whole_graph=True, filter_edges=[True,True,True,True]):
         self.adj = adj
         self.features = features
         self.edge_features = edge_features
         self.labels = labels
         self.train = train
+        self.whole_graph = whole_graph
+        self.filter_edges = filter_edges
 
     def __len__(self):
         return len(self.adj)
@@ -18,14 +21,18 @@ class DGLGraphDataset_3graphs(Dataset):
         g.ndata['feat'] = torch.FloatTensor(self.features[idx])
         g.edata['feat'] = torch.FloatTensor(self.edge_features[idx])
 
-        subg_dist = g.edge_subgraph(g.filter_edges(lambda edges : edges.data['feat'][:,1] == 1))
-        subg_pept = g.edge_subgraph(g.filter_edges(lambda edges : edges.data['feat'][:,2] == 1))
+        list_graphs = list()
+        if self.whole_graph:
+            list_graphs.append(g)
+
+        for i, bl in enumerate(self.filter_edges):
+            if bl:
+                list_graphs.append(g.edge_subgraph(g.filter_edges(lambda edges : edges.data['feat'][:,i+1] == 1)))
         
         if self.train :
-            return g, subg_dist, subg_pept, self.labels[idx]
+            return list_graphs, self.labels[idx]
         else : 
-            return g, subg_dist, subg_pept
-
+            return list_graphs
 
 class DGLGraphDataset_Multimodal(Dataset):
     def __init__(self, adj, features, edge_features, protein_embeddings, labels=None, train=True):

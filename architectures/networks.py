@@ -316,3 +316,57 @@ class GNN_multiple(torch.nn.Module):
         out = self.fc2(out)
 
         return embedding, torch.nn.functional.log_softmax(out, dim=-1)
+
+class GNN_multiple_roman(torch.nn.Module):
+    def __init__(self,
+                 in_feat: int,
+                 out_feat: int,
+                 hid_feat: int,
+                 num_graphs=3,
+                 dropout: float = 0.5,
+                 graph_layers=None,
+                 agg='mean',
+                 num_heads=1):
+        super(GNN_multiple_roman, self).__init__()
+        self.list_gnns = list()
+        self.num_graphs = num_graphs
+
+        for _ in range(self.num_graphs):
+            self.list_gnns.append(GNN(in_feat, out_feat, hid_feat, dropout, graph_layers, agg, num_heads))
+
+
+        self.a = torch.nn.Linear(hid_feat, 1)
+
+        self.bn = torch.nn.BatchNorm1d(hid_feat)
+        self.relu = torch.nn.ReLU()
+        self.dropout = torch.nn.Dropout(dropout)
+
+        self.fc1 = torch.nn.Linear(hid_feat, hid_feat)
+        self.fc2 = torch.nn.Linear(hid_feat, out_feat)
+
+    def forward(self, list_g):
+        outputs = list()
+        attentions = list()
+
+        for i, g in enumerate(list_g):
+            output, _ = self.list_gnns[i](g, g.ndata["feat"])
+            outputs.append(output[:,:,None])
+
+            attentions.append(self.a(output))
+
+        attentions = torch.cat(attentions, dim=-1)
+        attentions  = torch.nn.Softmax(dim=-1)(attentions)
+
+        
+        embedding = torch.matmul(torch.cat(outputs, dim=-1), attentions.unsqueeze(-1))[:,:,0]
+
+
+        out = self.bn(embedding)
+
+
+        # mlp to produce output
+        out = self.relu(self.fc1(out))
+        out = self.dropout(out)
+        out = self.fc2(out)
+
+        return embedding, torch.nn.functional.log_softmax(out, dim=-1)
