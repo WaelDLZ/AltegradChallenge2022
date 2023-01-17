@@ -282,18 +282,30 @@ class GNN_multiple(torch.nn.Module):
         self.gnn2 = GNN(in_feat, out_feat, hid_feat, dropout, graph_layers, agg, num_heads)
         self.gnn3 = GNN(in_feat, out_feat, hid_feat, dropout, graph_layers, agg, num_heads)
 
-        self.bn = torch.nn.BatchNorm1d(3*hid_feat)
+        self.w1 = torch.nn.Linear(hid_feat, 1, bias=False)
+        self.w2 = torch.nn.Linear(hid_feat, 1, bias=False)
+        self.w3 = torch.nn.Linear(hid_feat, 1, bias=False)
+
+        self.bn = torch.nn.BatchNorm1d(hid_feat)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(dropout)
 
-        self.fc1 = torch.nn.Linear(3*hid_feat, hid_feat)
+        self.fc1 = torch.nn.Linear(hid_feat, hid_feat)
         self.fc2 = torch.nn.Linear(hid_feat, out_feat)
 
     def forward(self, g1, g2, g3):
         output1, _ = self.gnn1(g1, g1.ndata["feat"])
         output2, _ = self.gnn1(g2, g2.ndata["feat"])
         output3, _ = self.gnn1(g3, g3.ndata["feat"])
-        embedding = torch.cat([output1, output2, output3], dim=-1)
+
+        w1 = self.w1(output1)
+        w2 = self.w2(output2)
+        w3 = self.w3(output3)
+
+        w = torch.cat([w1, w2, w3], dim=-1)
+        w = torch.softmax(w, dim=-1)
+
+        embedding = w[:, 0, None] * output1 + w[:, 1, None] * output2 + w[:, 2, None] * output3
         
         out = self.bn(embedding)
 

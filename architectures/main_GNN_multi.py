@@ -62,10 +62,10 @@ def main(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
     print("Load data...")
-    # adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
-    # features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
-    # edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
-    adj, features, edge_features = load_data(path=args.path_data)
+    adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
+    features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
+    edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
+    #adj, features, edge_features = load_data(path=args.path_data)
     print('Data Loaded !')
 
     adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
