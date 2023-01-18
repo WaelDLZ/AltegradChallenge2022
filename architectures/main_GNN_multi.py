@@ -1,14 +1,14 @@
 import sys
 
-# (sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
+(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
 (sys.path).append('C:\\Users\\Wael\\Desktop\\MVA\\Altegrad\\altegrad_challenge_2022\\AltegradChallenge2022')
 
 from load_BERT_embeddings import load_BERT_embedding
 from data import load_data, split_train_test
-from datasets import DGLGraphDataset_3graphs
+from datasets import DGLGraphDataset_ngraphs
 from dgl.dataloading import GraphDataLoader
 import torch
-from networks import GNN_multiple
+from networks import GNN_multiple_roman, GNN_multiple
 from train import train_multi_graph, test_multi_graph
 import numpy as np
 import csv
@@ -53,6 +53,10 @@ def parse_args():
                         help="Dropout ratio")
     parser.add_argument('--graph_layers', type=str, default=None,
                         help="Type of message passing layers in GNN")
+    parser.add_argument('--whole_graph', type=bool, default=False,
+                        help="")
+    parser.add_argument('--filter_edges', type=list, default=[True, True, False, False],
+                        help="")                   
     args = parser.parse_args()
     return args
 
@@ -65,17 +69,19 @@ def main(args):
     adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
     features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
     edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
+
     #adj, features, edge_features = load_data(path=args.path_data)
     print('Data Loaded !')
 
     adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
     edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
 
+
     features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
     features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
 
-    dataset_train = DGLGraphDataset_3graphs(adj_train, features_train, edge_features_train, y_train)
-    dataset_test = DGLGraphDataset_3graphs(adj_test, features_test, edge_features_test, train=False)
+    dataset_train = DGLGraphDataset_ngraphs(adj_train, features_train, edge_features_train, y_train)
+    dataset_test = DGLGraphDataset_ngraphs(adj_test, features_test, edge_features_test, train=False)
 
     num_train = int(args.split_percent * len(dataset_train))
     num_val = len(dataset_train) - num_train
@@ -86,8 +92,11 @@ def main(args):
     in_feat = features_train[0].shape[1]
     n_classes = args.n_classes
     n_hid = args.n_hid
+    num_graphs = args.whole_graph + sum(args.filter_edges)
 
-    model = GNN_multiple(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    # model = GNN_multiple(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    model = GNN_multiple_roman(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers, num_graphs=num_graphs).to(device)
+
 
     if args.path_pretrained_model:
         model.load_state_dict(torch.load(args.path_pretrained_model))
@@ -131,11 +140,9 @@ def main(args):
         preds = list()
         with torch.no_grad():
             for batch in tqdm(test_loader):
-                batch_graphs, batch_graphs_dist, batch_graphs_pept = batch
-                batch_graphs = batch_graphs.to(device)
-                batch_graphs_dist = batch_graphs_dist.to(device)
-                batch_graphs_pept = batch_graphs_pept.to(device)
-                _, out = model(batch_graphs, batch_graphs_dist, batch_graphs_pept)
+                list_g = batch
+                list_g = [g.to(device) for g in list_g]
+                _, out = model(list_g)
                 pred = out.detach().cpu().numpy()
                 pred = np.exp(pred)
                 preds.append(pred)
