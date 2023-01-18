@@ -45,7 +45,7 @@ class HGPSLModel(torch.nn.Module):
             in_feat: int,
             out_feat: int,
             hid_feat: int,
-            dropout: float = 0.5,
+            dropout: float = 0.0,
             pool_ratio: float = 0.5,
             conv_layers: int = 3,
             sample: bool = False,
@@ -326,16 +326,16 @@ class GNN_multiple_roman(torch.nn.Module):
                  dropout: float = 0.5,
                  graph_layers=None,
                  agg='mean',
-                 num_heads=1):
+                 num_heads=1,
+                 device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')):
         super(GNN_multiple_roman, self).__init__()
-        self.list_gnns = list()
+        self.list_gnns = torch.nn.ModuleList()
+        self.list_w = torch.nn.ModuleList()
         self.num_graphs = num_graphs
-
+        self.device = device
         for _ in range(self.num_graphs):
             self.list_gnns.append(GNN(in_feat, out_feat, hid_feat, dropout, graph_layers, agg, num_heads))
-
-
-        self.a = torch.nn.Linear(hid_feat, 1)
+            self.list_w.append(torch.nn.Linear(hid_feat, 1, bias=False))
 
         self.bn = torch.nn.BatchNorm1d(hid_feat)
         self.relu = torch.nn.ReLU()
@@ -350,19 +350,17 @@ class GNN_multiple_roman(torch.nn.Module):
 
         for i, g in enumerate(list_g):
             output, _ = self.list_gnns[i](g, g.ndata["feat"])
-            outputs.append(output[:,:,None])
+            outputs.append(output)
+            attentions.append(self.list_w[i](output))
 
-            attentions.append(self.a(output))
+        w = torch.cat(attentions, dim=-1)
+        w = torch.softmax(w, dim=-1)
 
-        attentions = torch.cat(attentions, dim=-1)
-        attentions  = torch.nn.Softmax(dim=-1)(attentions)
-
-        
-        embedding = torch.matmul(torch.cat(outputs, dim=-1), attentions.unsqueeze(-1))[:,:,0]
-
+        embedding = w[:, 0, None] * outputs[0]
+        for i in range(1, self.num_graphs):
+            embedding += w[:, i, None] * outputs[i]
 
         out = self.bn(embedding)
-
 
         # mlp to produce output
         out = self.relu(self.fc1(out))

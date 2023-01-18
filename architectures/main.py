@@ -53,7 +53,7 @@ def parse_args():
 
 
 def main(args):
-    torch.manual_seed(29)
+    torch.manual_seed(3407)
     device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
     print("Load data...")

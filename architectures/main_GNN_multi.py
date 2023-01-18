@@ -62,7 +62,7 @@ def parse_args():
 
 
 def main(args):
-    torch.manual_seed(29)
+    torch.manual_seed(3407)
     device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
     print("Load data...")
@@ -76,13 +76,13 @@ def main(args):
     adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
     edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
 
-
     features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
     features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
 
-    dataset_train = DGLGraphDataset_ngraphs(adj_train, features_train, edge_features_train, y_train)
-    dataset_test = DGLGraphDataset_ngraphs(adj_test, features_test, edge_features_test, train=False)
-
+    dataset_train = DGLGraphDataset_ngraphs(adj_train, features_train, edge_features_train, y_train,
+                                            whole_graph=args.whole_graph, filter_edges=args.filter_edges)
+    dataset_test = DGLGraphDataset_ngraphs(adj_test, features_test, edge_features_test, train=False,
+                                           whole_graph=args.whole_graph, filter_edges=args.filter_edges)
     num_train = int(args.split_percent * len(dataset_train))
     num_val = len(dataset_train) - num_train
 
@@ -95,6 +95,7 @@ def main(args):
     num_graphs = args.whole_graph + sum(args.filter_edges)
 
     # model = GNN_multiple(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+
     model = GNN_multiple_roman(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers, num_graphs=num_graphs).to(device)
 
 
