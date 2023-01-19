@@ -2,7 +2,7 @@ import logging
 import math
 
 import torch
-from scipy.stats import t
+# from scipy.stats import t
 
 
 def get_stats(
@@ -117,3 +117,13 @@ def topk(
     perm = perm[mask]
 
     return perm, k
+
+
+def classes_weights(y):
+    n_classes = max(y) + 1
+    counts = torch.zeros(n_classes)
+    for label in y:
+        counts[label] += 1
+
+    weights = -torch.log(counts)
+    return weights / sum(weights)

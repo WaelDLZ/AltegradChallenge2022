@@ -2,7 +2,7 @@ import torch.nn.functional as F
 import torch
 from tqdm import tqdm
 
-def train(model: torch.nn.Module, optimizer, trainloader, device, scheduler=None):
+def train(model: torch.nn.Module, optimizer, trainloader, device, scheduler=None, weights=None):
     model.train()
     total_loss = 0.0
     num_batches = len(trainloader)
@@ -12,7 +12,10 @@ def train(model: torch.nn.Module, optimizer, trainloader, device, scheduler=None
         batch_graphs = batch_graphs.to(device)
         batch_labels = batch_labels.long().to(device)
         _, out = model(batch_graphs, batch_graphs.ndata["feat"])
-        loss = F.nll_loss(out, batch_labels)
+        if weights is not None:
+            loss = F.nll_loss(out, batch_labels, weight=weights)
+        else:
+            loss = F.nll_loss(out, batch_labels)
         loss.backward()
         optimizer.step()
 

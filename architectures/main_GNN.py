@@ -14,6 +14,7 @@ import numpy as np
 import csv
 from tqdm import tqdm
 import pickle
+from utils import classes_weights
 
 import argparse
 
@@ -79,8 +80,11 @@ def main(args):
     num_train = int(args.split_percent * len(dataset_train))
     num_val = len(dataset_train) - num_train
 
+
     train_set, val_set = torch.utils.data.random_split(dataset_train, [num_train, num_val],
                                                        generator=torch.Generator().manual_seed(42))
+
+    weights = classes_weights(train_set.dataset.labels).to(device)
 
     in_feat = features_train[0].shape[1]
     n_classes = args.n_classes
@@ -105,7 +109,7 @@ def main(args):
         best_epoch = 0
         train_times = []
         for e in range(args.epochs):
-            train_loss = train(model, optimizer, train_loader, device, scheduler=scheduler)
+            train_loss = train(model, optimizer, train_loader, device, scheduler=scheduler, weights=weights)
             val_acc, val_loss = test(model, val_loader, device)
             if best_val_loss > val_loss:
                 best_val_loss = val_loss

@@ -1,6 +1,6 @@
 import sys
 
-(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
+#(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
 (sys.path).append('C:\\Users\\Wael\\Desktop\\MVA\\Altegrad\\altegrad_challenge_2022\\AltegradChallenge2022')
 
 from load_BERT_embeddings import load_BERT_embedding
@@ -14,6 +14,7 @@ import numpy as np
 import csv
 from tqdm import tqdm
 import pickle
+from utils import classes_weights
 
 import argparse
 
