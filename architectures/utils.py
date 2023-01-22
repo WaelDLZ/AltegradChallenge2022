@@ -125,5 +125,5 @@ def classes_weights(y):
     for label in y:
         counts[label] += 1
 
-    weights = -torch.log(counts)
+    weights = 1/counts**0.5
     return weights / sum(weights)

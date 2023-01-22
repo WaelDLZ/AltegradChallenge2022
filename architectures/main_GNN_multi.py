@@ -40,7 +40,7 @@ def parse_args():
                         help="epochs")
     parser.add_argument('--path_save_model', type=str, default='', metavar='D',
                         help="where to save the model")
-    parser.add_argument('--patience', type=int, default=5, metavar='D',
+    parser.add_argument('--patience', type=int, default=10, metavar='D',
                         help="number of epochs to wait to early stop the training")
     parser.add_argument('--print_every', type=int, default=1, metavar='D',
                         help="val_loss to print every X epochs")

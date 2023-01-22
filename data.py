@@ -3,8 +3,6 @@ Author: Ambroise Odonnat
 Purpose: Create graphs and features
 """
 
-import numpy as np
-import scipy.sparse as sp
 import os
 
 import csv
@@ -104,3 +102,17 @@ def split_train_test(adj, features, edge_features, path=''):
                 edge_features_train.append(edge_features[i])
     return adj_train, features_train, edge_features_train, y_train, adj_test, features_test, edge_features_test, proteins_test
 
+
+def normalize_adjacency(A):
+    """
+    Function that normalizes an adjacency matrix
+    """
+    n = A.shape[0]
+    A.setdiag(0)
+    A += sp.identity(n)
+    degs = A.dot(np.ones(n))
+    inv_degs = np.power(degs, -1)
+    D = sp.diags(inv_degs)
+    A_normalized = D.dot(A)
+
+    return A_normalized

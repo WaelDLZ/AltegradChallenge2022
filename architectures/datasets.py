@@ -30,9 +30,15 @@ class DGLGraphDataset_ngraphs(Dataset):
                 list_graphs.append(g.edge_subgraph(g.filter_edges(lambda edges : edges.data['feat'][:,i+1] == 1)))
         
         if self.train :
-            return list_graphs, self.labels[idx]
-        else : 
-            return list_graphs
+            if len(list_graphs) == 1:
+                return list_graphs[0], self.labels[idx]
+            else:
+                return list_graphs, self.labels[idx]
+        else :
+            if len(list_graphs) == 1:
+                return list_graphs[0]
+            else:
+                return list_graphs
 
 class DGLGraphDataset_Multimodal(Dataset):
     def __init__(self, adj, features, edge_features, protein_embeddings, labels=None, train=True):
