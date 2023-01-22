@@ -2,6 +2,8 @@ import torch
 from torch.utils.data import Dataset
 import dgl
 import numpy as np
+##test
+##test
 
 class DGLGraphDataset_ngraphs(Dataset):
     def __init__(self, adj, features, edge_features, labels=None, train=True, whole_graph=True, filter_edges=[True,True,True,True]):
