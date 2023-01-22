@@ -3,23 +3,24 @@ import sys
 # (sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
 (sys.path).append('C:\\Users\\Wael\\Desktop\\MVA\\Altegrad\\altegrad_challenge_2022\\AltegradChallenge2022')
 
-from load_BERT_embeddings import load_BERT_embedding
-from data import load_data, split_train_test
-from datasets import DGLGraphDataset
+from utils.load_BERT_embeddings import load_BERT_embedding
+from utils.data import load_data, split_train_test, normalize_adjacency
+from utils.datasets import DGLGraphDataset
 from dgl.dataloading import GraphDataLoader
 import torch
-from networks import GNN
-from train import train, test
+from architectures.networks import GNN
+from utils.train import train, test
 import numpy as np
 import csv
 from tqdm import tqdm
 import pickle
+from utils.utils import classes_weights
 
 import argparse
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="HGP-SL-DGL altegrad")
+    parser = argparse.ArgumentParser(description="GNN altegrad")
 
     parser.add_argument('--path_data', type=str, default='', metavar='D',
                         help="folder where data is located")
@@ -63,18 +64,16 @@ def main(args):
 
     print("Load data...")
     adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
-    features = pickle.load(open(args.path_data + 'pca_nodes_attributes.pkl', 'rb'))
+    features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
     edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
     print('Data Loaded !')
+    adj = [normalize_adjacency(A) for A in adj]
 
-    adj_train, pca_train, edge_features_train, y_train, adj_test, pca_test, \
+    adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
     edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
 
-    bert_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
-    bert_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
-
-    features_train = [np.concatenate([pca_train[i], bert_train[i]], axis=1) for i in range(len(bert_train))]
-    features_test = [np.concatenate([pca_test[i], bert_test[i]], axis=1) for i in range(len(bert_test))]
+    features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
+    features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
 
     dataset_train = DGLGraphDataset(adj_train, features_train, edge_features_train, y_train)
     dataset_test = DGLGraphDataset(adj_test, features_test, edge_features_test, train=False)
@@ -82,14 +81,17 @@ def main(args):
     num_train = int(args.split_percent * len(dataset_train))
     num_val = len(dataset_train) - num_train
 
+
     train_set, val_set = torch.utils.data.random_split(dataset_train, [num_train, num_val],
                                                        generator=torch.Generator().manual_seed(42))
+
+    weights = classes_weights(train_set.dataset.labels).to(device)
 
     in_feat = features_train[0].shape[1]
     n_classes = args.n_classes
     n_hid = args.n_hid
 
-    model = GNN(in_feat=1028, out_feat=18, hid_feat=args.n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    model = GNN(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
 
     if args.path_pretrained_model:
         model.load_state_dict(torch.load(args.path_pretrained_model))
@@ -108,16 +110,16 @@ def main(args):
         best_epoch = 0
         train_times = []
         for e in range(args.epochs):
-            train_loss = train(model, optimizer, train_loader, device, scheduler=scheduler)
+            train_loss = train(model, optimizer, train_loader, device, scheduler=scheduler, weights=weights)
             val_acc, val_loss = test(model, val_loader, device)
-            if best_val_loss > val_loss:
-                best_val_loss = val_loss
-                bad_cound = 0
-                torch.save(model.state_dict(), args.path_save_model)
-            else:
-                bad_cound += 1
-            if bad_cound >= args.patience:
-                break
+            # if best_val_loss > val_loss:
+            #     best_val_loss = val_loss
+            #     bad_cound = 0
+            #     torch.save(model.state_dict(), args.path_save_model)
+            # else:
+            #     bad_cound += 1
+            # if bad_cound >= args.patience:
+            #     break
 
             if (e + 1) % args.print_every == 0:
                 log_format = (
@@ -125,6 +127,7 @@ def main(args):
                 )
                 print(log_format.format(e + 1, train_loss, val_loss, val_acc))
         print("Training done !")
+        torch.save(model.state_dict(), args.path_save_model)
 
     if args.path_submission:
         print("Inference on test set: ")

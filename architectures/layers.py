@@ -11,8 +11,8 @@ from torch import Tensor
 from torch.nn import Parameter
 
 
-from functions import edge_sparsemax
-from utils import get_batch_id, topk
+from utils.functions import edge_sparsemax
+from utils.utils import get_batch_id, topk
 
 
 class WeightedGraphConv(GraphConv):

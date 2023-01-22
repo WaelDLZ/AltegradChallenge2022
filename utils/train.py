@@ -3,6 +3,7 @@ import torch
 from tqdm import tqdm
 
 def train(model: torch.nn.Module, optimizer, trainloader, device, scheduler=None, weights=None):
+    '''Function that runs a single epoch'''
     model.train()
     total_loss = 0.0
     num_batches = len(trainloader)
@@ -25,6 +26,7 @@ def train(model: torch.nn.Module, optimizer, trainloader, device, scheduler=None
     return total_loss / num_batches
 
 def train_multimodal(model: torch.nn.Module, optimizer, trainloader, device, scheduler=None):
+    '''Function that runs a single epoch for the multimodal setting'''
     model.train()
     total_loss = 0.0
     num_batches = len(trainloader)
@@ -46,6 +48,7 @@ def train_multimodal(model: torch.nn.Module, optimizer, trainloader, device, sch
     return total_loss / num_batches
 
 def train_multi_graph(model: torch.nn.Module, optimizer, trainloader, device, scheduler=None):
+    '''Function that runs a single epoch for the multigraphs settings'''
     model.train()
     total_loss = 0.0
     num_batches = len(trainloader)
@@ -67,6 +70,7 @@ def train_multi_graph(model: torch.nn.Module, optimizer, trainloader, device, sc
 
 @torch.no_grad()
 def test(model: torch.nn.Module, loader, device):
+    '''Function that computes evaluation metrics'''
     model.eval()
     correct = 0.0
     loss = 0.0
@@ -83,6 +87,7 @@ def test(model: torch.nn.Module, loader, device):
     return correct / num_graphs, loss / num_graphs
 
 def test_multimodal(model: torch.nn.Module, loader, device):
+    '''Function that computes evaluation metrics for the multimodal setting'''
     model.eval()
     correct = 0.0
     loss = 0.0
@@ -101,6 +106,7 @@ def test_multimodal(model: torch.nn.Module, loader, device):
 
 @torch.no_grad()
 def test_multi_graph(model: torch.nn.Module, loader, device):
+    '''Function that computes evaluation metrics for the multi graph setting'''
     model.eval()
     correct = 0.0
     loss = 0.0

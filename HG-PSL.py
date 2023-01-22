@@ -1,22 +1,20 @@
-import sys
-
-# (sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
+import sys 
+#(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
 (sys.path).append('C:\\Users\\Wael\\Desktop\\MVA\\Altegrad\\altegrad_challenge_2022\\AltegradChallenge2022')
 
-from load_BERT_embeddings import load_BERT_embedding
+from utils.load_BERT_embeddings import load_BERT_embedding
 from data import load_data, split_train_test
-from datasets import DGLGraphDataset
+from utils.datasets import DGLGraphDataset
 from dgl.dataloading import GraphDataLoader
 import torch
-from networks import GNN
-from train import train, test
+from architectures.networks import HGPSLModel
+from utils.train import train, test
 import numpy as np
 import csv
 from tqdm import tqdm
 import pickle
 
 import argparse
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="HGP-SL-DGL altegrad")
@@ -49,32 +47,30 @@ def parse_args():
                         help="path to csv file for submissions")
     parser.add_argument('--path_pretrained_model', type=str,
                         help="Path to pretrained models weights")
-    parser.add_argument('--dropout', type=float, default=0.5,
-                        help="Dropout ratio")
-    parser.add_argument('--graph_layers', type=str, default=None,
-                        help="Type of message passing layers in GNN")
     args = parser.parse_args()
     return args
+                                                    
 
 
 def main(args):
-    torch.manual_seed(29)
+    torch.manual_seed(3407)
     device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
     print("Load data...")
-    adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
-    features = pickle.load(open(args.path_data + 'pca_nodes_attributes.pkl', 'rb'))
+    adj = pickle.load(open(args.path_data+'adj.pkl', 'rb'))
+    features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
     edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
     print('Data Loaded !')
 
-    adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
-    edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
-
-    # features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
-    # features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
-
+    adj_train, features_train, edge_features_train, y_train, adj_test, features_test,\
+        edge_features_test, proteins_test = split_train_test(adj, features, edge_features, path=args.path_data)
+    
+    features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
+    features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
+    
     dataset_train = DGLGraphDataset(adj_train, features_train, edge_features_train, y_train)
     dataset_test = DGLGraphDataset(adj_test, features_test, edge_features_test, train=False)
+
 
     num_train = int(args.split_percent * len(dataset_train))
     num_val = len(dataset_train) - num_train
@@ -82,20 +78,20 @@ def main(args):
     train_set, val_set = torch.utils.data.random_split(dataset_train, [num_train, num_val],
                                                        generator=torch.Generator().manual_seed(42))
 
-    in_feat = features_train[0].shape[1]
+    n_feat = features_train[0].shape[1]
     n_classes = args.n_classes
     n_hid = args.n_hid
 
-    model = GNN(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    model = HGPSLModel(n_feat, n_classes, n_hid).to(device)
 
     if args.path_pretrained_model:
         model.load_state_dict(torch.load(args.path_pretrained_model))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.2)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
     train_loader = GraphDataLoader(train_set, batch_size=args.batch_size, shuffle=True)
-    val_loader = GraphDataLoader(val_set, batch_size=args.batch_size, shuffle=False)
+    val_loader = GraphDataLoader(val_set, batch_size=args.batch_size, shuffle=True)
     test_loader = GraphDataLoader(dataset_test, batch_size=1, shuffle=False)
 
     if args.epochs > 0:

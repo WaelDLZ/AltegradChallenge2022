@@ -2,14 +2,14 @@ import sys
 #(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
 (sys.path).append('C:\\Users\\Wael\\Desktop\\MVA\\Altegrad\\altegrad_challenge_2022\\AltegradChallenge2022')
 
-from load_BERT_embeddings import load_BERT_embedding
+from utils.load_BERT_embeddings import load_BERT_embedding
 import pickle
 from data import load_data, split_train_test
-from datasets import DGLGraphDataset_Multimodal
+from utils.datasets import DGLGraphDataset_Multimodal
 from dgl.dataloading import GraphDataLoader
 import torch
-from networks import HGPSLModel, MultimodalModel
-from train import train_multimodal, test_multimodal
+from architectures.networks import HGPSLModel, MultimodalModel
+from utils.train import train_multimodal, test_multimodal
 import numpy as np
 import csv
 from tqdm import tqdm

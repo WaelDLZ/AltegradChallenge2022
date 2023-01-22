@@ -1,7 +1,7 @@
 import torch
 import torch.nn
 import torch.nn.functional as F
-from layers import ConvPoolReadout
+from architectures.layers import ConvPoolReadout
 from dgl.nn.pytorch.conv import GraphConv, SAGEConv, GATConv
 
 from dgl.nn.pytorch.glob import SumPooling, GlobalAttentionPooling, AvgPooling

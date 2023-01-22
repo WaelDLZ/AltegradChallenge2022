@@ -1,20 +1,20 @@
 import sys
 
-# (sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
+#(sys.path).append('D:\\OneDrive\\OneDrive - enpc.fr\\Documents\\Roman\\MVA\\ChallengeAltegrad\\AltegradChallenge2022')
 (sys.path).append('C:\\Users\\Wael\\Desktop\\MVA\\Altegrad\\altegrad_challenge_2022\\AltegradChallenge2022')
 
-from load_BERT_embeddings import load_BERT_embedding
+from utils.load_BERT_embeddings import load_BERT_embedding
 from data import load_data, split_train_test
-from datasets import DGLGraphDataset_ngraphs
+from utils.datasets import DGLGraphDataset_ngraphs
 from dgl.dataloading import GraphDataLoader
 import torch
-from networks import GNN
-from train import train, test
+from architectures.networks import GNN_multiple_roman, GNN_multiple
+from utils.train import train_multi_graph, test_multi_graph
 import numpy as np
 import csv
 from tqdm import tqdm
 import pickle
-from utils import classes_weights
+from utils.utils import classes_weights
 
 import argparse
 
@@ -40,7 +40,7 @@ def parse_args():
                         help="epochs")
     parser.add_argument('--path_save_model', type=str, default='', metavar='D',
                         help="where to save the model")
-    parser.add_argument('--patience', type=int, default=5, metavar='D',
+    parser.add_argument('--patience', type=int, default=10, metavar='D',
                         help="number of epochs to wait to early stop the training")
     parser.add_argument('--print_every', type=int, default=1, metavar='D',
                         help="val_loss to print every X epochs")
@@ -54,18 +54,24 @@ def parse_args():
                         help="Dropout ratio")
     parser.add_argument('--graph_layers', type=str, default=None,
                         help="Type of message passing layers in GNN")
+    parser.add_argument('--whole_graph', type=bool, default=False,
+                        help="")
+    parser.add_argument('--filter_edges', type=list, default=[True, True, False, False],
+                        help="")                   
     args = parser.parse_args()
     return args
 
 
 def main(args):
-    torch.manual_seed(29)
+    torch.manual_seed(3407)
     device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')
 
     print("Load data...")
     adj = pickle.load(open(args.path_data + 'adj.pkl', 'rb'))
     features = pickle.load(open(args.path_data + 'features.pkl', 'rb'))
     edge_features = pickle.load(open(args.path_data + 'edge_features.pkl', 'rb'))
+
+    #adj, features, edge_features = load_data(path=args.path_data)
     print('Data Loaded !')
 
     adj_train, features_train, edge_features_train, y_train, adj_test, features_test, \
@@ -74,24 +80,25 @@ def main(args):
     features_train, _ = load_BERT_embedding(args.path_embeddings + '/train/embeddings.pkl')
     features_test, _ = load_BERT_embedding(args.path_embeddings + '/test/embeddings.pkl')
 
-    dataset_train = DGLGraphDataset_ngraphs(adj_train, features_train, edge_features_train, y_train, whole_graph=False,
-                                            filter_edges=[True, False, False, False])
-    dataset_test = DGLGraphDataset_ngraphs(adj_test, features_test, edge_features_test, train=False, whole_graph=False,
-                                           filter_edges=[True, False, False, False])
-
+    dataset_train = DGLGraphDataset_ngraphs(adj_train, features_train, edge_features_train, y_train,
+                                            whole_graph=args.whole_graph, filter_edges=args.filter_edges)
+    dataset_test = DGLGraphDataset_ngraphs(adj_test, features_test, edge_features_test, train=False,
+                                           whole_graph=args.whole_graph, filter_edges=args.filter_edges)
     num_train = int(args.split_percent * len(dataset_train))
     num_val = len(dataset_train) - num_train
 
     train_set, val_set = torch.utils.data.random_split(dataset_train, [num_train, num_val],
                                                        generator=torch.Generator().manual_seed(42))
 
-    weights = classes_weights(train_set.dataset.labels).to(device)
-
     in_feat = features_train[0].shape[1]
     n_classes = args.n_classes
     n_hid = args.n_hid
+    num_graphs = args.whole_graph + sum(args.filter_edges)
 
-    model = GNN(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+    # model = GNN_multiple(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers).to(device)
+
+    model = GNN_multiple_roman(in_feat, n_classes, n_hid, dropout=args.dropout, graph_layers=args.graph_layers, num_graphs=num_graphs).to(device)
+
 
     if args.path_pretrained_model:
         model.load_state_dict(torch.load(args.path_pretrained_model))
@@ -110,8 +117,8 @@ def main(args):
         best_epoch = 0
         train_times = []
         for e in range(args.epochs):
-            train_loss = train(model, optimizer, train_loader, device, scheduler=scheduler, weights=weights)
-            val_acc, val_loss = test(model, val_loader, device)
+            train_loss = train_multi_graph(model, optimizer, train_loader, device, scheduler=scheduler)
+            val_acc, val_loss = test_multi_graph(model, val_loader, device)
             if best_val_loss > val_loss:
                 best_val_loss = val_loss
                 bad_cound = 0
@@ -135,8 +142,9 @@ def main(args):
         preds = list()
         with torch.no_grad():
             for batch in tqdm(test_loader):
-                x = batch.to(device)
-                _, out = model(x, x.ndata["feat"])
+                list_g = batch
+                list_g = [g.to(device) for g in list_g]
+                _, out = model(list_g)
                 pred = out.detach().cpu().numpy()
                 pred = np.exp(pred)
                 preds.append(pred)
