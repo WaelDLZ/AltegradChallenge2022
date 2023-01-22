@@ -1,1 +1,7 @@
 /data/
+/submissions/
+/models/
+/.ipynb_checkpoints/
+/architectures/__pycache__
+/ProtBert_BFD_FineTuning_MS.ipynb
+/Prot_bert/
