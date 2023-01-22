@@ -2,7 +2,7 @@ import torch
 import torch.nn
 import torch.nn.functional as F
 from layers import ConvPoolReadout
-from dgl.nn.pytorch.conv import GraphConv, SAGEConv, GATConv
+from dgl.nn.pytorch.conv import GraphConv, SAGEConv, GATConv, AGNNConv, GATv2Conv
 
 from dgl.nn.pytorch.glob import SumPooling, GlobalAttentionPooling, AvgPooling
 
@@ -165,24 +165,34 @@ class GNN(torch.nn.Module):
 
         self.graph_layers = graph_layers
 
+        self.fc1 = torch.nn.Linear(hid_feat, hid_feat)
+        self.fc2 = torch.nn.Linear(hid_feat, out_feat)
+
+        self.bn = torch.nn.BatchNorm1d(hid_feat)
+
         if graph_layers == 'SAGE':
             self.mp1 = SAGEConv(in_feat, hid_feat, aggregator_type=agg)
             self.mp2 = SAGEConv(hid_feat, hid_feat, aggregator_type=agg)
         if graph_layers == 'GAT':
             self.mp1 = GATConv(in_feat, hid_feat, num_heads=num_heads)
             self.mp2 = GATConv(hid_feat, hid_feat, num_heads=num_heads)
+        if graph_layers == 'GAT2CONV':
+            self.mp1 = GATv2Conv(in_feat, hid_feat, num_heads=num_heads, attn_drop=dropout, residual=True)
+            self.mp2 = GATv2Conv(hid_feat, hid_feat, num_heads=num_heads, attn_drop=dropout, residual=True)
+        if graph_layers == 'AGNN':
+            self.mp1 = AGNNConv()
+            self.mp2 = AGNNConv()
+            self.bn = torch.nn.BatchNorm1d(in_feat)
+            self.fc1 = torch.nn.Linear(in_feat, hid_feat)
+            self.fc2 = torch.nn.Linear(hid_feat, out_feat)
 
-        self.fc1 = torch.nn.Linear(hid_feat, hid_feat)
-        self.fc2 = torch.nn.Linear(hid_feat, out_feat)
-
-        self.bn = torch.nn.BatchNorm1d(hid_feat)
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(dropout)
 
         self.readout = SumPooling()
 
     def forward(self, graph, n_feat):
-        if self.graph_layers == 'GAT':
+        if self.graph_layers == 'GAT' or 'GAT2CONV':
             x = self.mp1(graph, n_feat).squeeze(-2)
             x = self.relu(x)
             x = self.dropout(x)
@@ -194,7 +204,6 @@ class GNN(torch.nn.Module):
             x = self.relu(self.mp2(graph, x))
 
         embedding = self.readout(graph, x)
-
         # batch normalization layer
         out = self.bn(embedding)
 
@@ -202,6 +211,42 @@ class GNN(torch.nn.Module):
         out = self.relu(self.fc1(out))
         out = self.dropout(out)
         out = self.fc2(out)
+
+        return embedding, torch.nn.functional.log_softmax(out, dim=-1)
+
+
+class GNN_wael(torch.nn.Module):
+    def __init__(self,
+                 in_feat: int,
+                 out_feat: int,
+                 hid_feat: int,
+                 dropout: float = 0.5):
+        super(GNN_wael, self).__init__()
+
+        self.mp1 = GraphConv(in_feat, in_feat//4)
+        self.mp2 = GraphConv(in_feat//4, in_feat//8)
+
+        self.fc = torch.nn.Linear(in_feat//8, out_feat)
+
+        self.bn = torch.nn.BatchNorm1d(in_feat//8)
+
+        self.relu = torch.nn.ReLU()
+        self.dropout = torch.nn.Dropout(dropout)
+
+        self.readout = SumPooling()
+
+    def forward(self, graph, n_feat):
+        x = self.relu(self.mp1(graph, n_feat))
+        x = self.dropout(x)
+        x = self.relu(self.mp2(graph, x))
+
+        embedding = self.readout(graph, x)
+        # batch normalization layer
+        out = self.bn(embedding)
+
+        # mlp to produce output
+        out = self.relu(self.fc(out))
+        #out = self.dropout(out)
 
         return embedding, torch.nn.functional.log_softmax(out, dim=-1)
 
