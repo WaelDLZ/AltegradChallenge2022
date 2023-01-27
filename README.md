@@ -1,7 +1,8 @@
 # Protein Cellular Component Ontology Prediction 
 
-Challenge for the 2022 ALTEGRAD course of Master MVA of ENS Paris-Saclay
-More information to find [here](https://www.kaggle.com/competitions/altegrad-2022/overview).
+Challenge for the 2022 ALTEGRAD course of Master MVA of ENS Paris-Saclay.
+
+For more information, see [challenge-overview](https://www.kaggle.com/competitions/altegrad-2022/overview).
 
 We describe our approach in our [report](https://github.com/WaelDLZ/AltegradChallenge2022/blob/main/report.pdf) and our [presentation](https://github.com/WaelDLZ/AltegradChallenge2022/blob/main/presentation.pdf).
 
